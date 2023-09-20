@@ -119,10 +119,20 @@ int main(int argc, char** argv)
 
 	if (argc < 4) { printf("%s", help_message); return 0; }
 
-	/* int aspect_ratio = original_image.width / original_image.height; */
+	// We get the aspect ratio of the original image, we can maintain aspect ratio this way
+	int aspect_ratio = original_image.width / original_image.height;
+
+	// If the aspect ratio is 0 we set it to one, this occurs with images that are longer than they are wider
+	if (aspect_ratio == 0)
+		aspect_ratio = 1;
+
+	int res_w = (int)(atoi(argv[2]));
+	int res_h = (int)(atoi(argv[3]));
 
 	// Create the resized image with the width and height selected by the user
-	struct image resized_image = { .width = (int)atoi(argv[2]), .height = (int)atoi(argv[3])};
+	// The height is basically set with this logic
+	// If the aspect_ratio is 1, we use the height specified by the user, if its not, we divide the resolution by the aspect ratio
+	struct image resized_image = { .width = res_w, .height = aspect_ratio == 1 ? res_h : (int)(res_h / aspect_ratio)};
 	// Size of each pixel * the number of pixels 
 	resized_image.size = resized_image.width * resized_image.height * original_image.channels;
 	if (!image_resize(original_image, &resized_image)) { printf("%s", help_message); return 0; }
