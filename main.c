@@ -45,9 +45,7 @@ int image_resize(struct image input, struct image* output)
 
 int image_to_gray_scale(struct image input, struct image* output)
 {
-	// This is for png files too
-	output->channels = input.channels == 4 ? 2 : 1;
-	output->size = input.width * input.height * output->channels;
+	output->channels = 1;
 	output->data = (unsigned char*)malloc(output->size);
 
 	for (unsigned char *p = input.data, *pg = output->data; p != input.data + input.size; p += input.channels, pg += output->channels)
@@ -66,10 +64,11 @@ int image_to_gray_scale(struct image input, struct image* output)
 	output->width = input.width;
 	output->height = input.height;
 
+	// Writes the result in an image, this is not needed and it makes the program slower
+	/* stbi_write_jpg("gray.jpg", output->width, output->height, output->channels, output->data, 100); */
+
 	return 1;
 
-	// Writes the result in an image, this is not needed and it makes the program slower
-	/* stbi_write_jpg(output->path, input.width, input.height, output->channels, output->data, 100); */
 }
 
 void image_to_ascii(struct image gray_image)
