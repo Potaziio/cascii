@@ -71,8 +71,16 @@ int image_to_gray_scale(struct image input, struct image* output)
 
 }
 
-void image_to_ascii(struct image gray_image)
+void image_to_ascii(struct image gray_image, int make_text)
 {
+	FILE* file;
+
+	if (make_text)
+	{
+		file = fopen("ascii.txt", "w");
+		if (file == NULL) return;
+	}
+
 	// Ascii characters arranged from darkest to lightest
 	char* gray_ramp = "^\",:;Il!i~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0oZmwqpdbkhao*#MW&8%B@S ";
 	int ramp_length = strlen(gray_ramp);
@@ -92,11 +100,18 @@ void image_to_ascii(struct image gray_image)
 
 			// Map the character with the brightness, this is simple division and multiplication
 			char mapped_char = gray_ramp[(int)(ramp_length * (average / 255))];
+
+			if (make_text) fputc(mapped_char, file);
+
 			putchar(mapped_char);
 		}
 
+		if (make_text) fputc('\n', file);
+
 		printf("\n");
 	}
+
+	if (make_text) fclose(file);
 }
 
 int main(int argc, char** argv)
@@ -104,8 +119,9 @@ int main(int argc, char** argv)
 	// we just parse arguments here
 	
 	char* help_message = "\n  cascii help\n"
-						 "  --version\n"
-						 "  image_path, width, height\n\n";
+						 "  --version : prints version\n"
+						 "  image_path, width, height\n"
+						 "  --file || --f : generates ascii.txt with ascii art\n\n";
 
 	if (argc < 2) { printf("%s", help_message); return 0; }
 
@@ -138,8 +154,21 @@ int main(int argc, char** argv)
 
 	struct image gray_image;
 	if (!image_to_gray_scale(resized_image, &gray_image)) return 0;
+	
+	int make_file = 0;
 
-	image_to_ascii(gray_image);
+	// If there is a fifth argument then we check if its equals to --file or -f
+	// If it is make file is then set to 1, so we create a file with the ascii art
+	// If it isn't we stop and print help,
+	// If there is no fifth argument we proceed without generating an ascii art file
+	if (argc == 5)
+	{
+		// Returns 1 if its either of them
+		make_file = !strcmp(argv[4], "--file") ||! strcmp(argv[4], "--f");
+		if (!make_file) { printf("%s", help_message); return 0; }
+	}
+
+	image_to_ascii(gray_image, make_file);
 
 	// We free the data 
 	free(gray_image.data);
