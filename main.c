@@ -18,6 +18,10 @@
 
 #define VERSION 0.1
 
+#define RED_WEIGHT 0.21
+#define GREEN_WEIGHT 0.72
+#define BLUE_WEIGHT 0.07
+
 struct image
 {
 	unsigned char* data;
@@ -38,13 +42,17 @@ int image_resize(struct image input, struct image* output)
 {
 	output->data = (unsigned char*)malloc(output->size);
 	output->channels = input.channels;
-	return (stbir_resize_uint8(input.data, input.width, input.height, 0, output->data, output->width, output->height, 0, input.channels) != 0);
-	// Just commenting this out but this writes the result in an image
-	/* stbi_write_jpg(output->path, output->width, output->height, output->channels, output->data, 100); */
+	int res = stbir_resize_uint8(input.data, input.width, input.height, 0, output->data, output->width, output->height, 0, input.channels);
+
+	if (!res) 
+		printf("Failure resizing image\n");
+
+	return res;
 }
 
 int image_to_gray_scale(struct image input, struct image* output)
 {
+	// Grayscale images only have one channel
 	output->channels = 1;
 	output->data = (unsigned char*)malloc(output->size);
 
@@ -53,22 +61,22 @@ int image_to_gray_scale(struct image input, struct image* output)
 		// We use different weigths to calculate the gray scale of each color 
 		// We can also just get the average of each pixel but eyes dont see all red, green and blue colors the same 
 		// So we use weights instead 
-		*pg = (uint8_t)((*p * 0.21) + (*(p + 1) * 0.72) + (*(p + 2) * 0.07)); 
+		*pg = (uint8_t)((*p * RED_WEIGHT) + (*(p + 1) * GREEN_WEIGHT) + (*(p + 2) * BLUE_WEIGHT)); 
 
 		if (input.channels == 4)
-		{
 			*(pg + 1) = *(p + 3);
-		}
 	}
 
 	output->width = input.width;
 	output->height = input.height;
 
-	// Writes the result in an image, this is not needed and it makes the program slower
-	/* stbi_write_jpg("gray.jpg", output->width, output->height, output->channels, output->data, 100); */
+	if (!output->data)
+	{
+		printf("Failure converting image to grayscale");
+		return 0;
+	}
 
 	return 1;
-
 }
 
 void image_to_ascii(struct image gray_image, int make_text)
@@ -121,26 +129,36 @@ int main(int argc, char** argv)
 	char* help_message = "\n  cascii help\n"
 						 "  --version : prints version\n"
 						 "  image_path, width, height\n"
-						 "  --file || --f : generates ascii.txt with ascii art\n\n";
+						 "  --file || --f : generates ascii.txt with ascii art"
+						 "  --imdata : prits image data {width, height, channels}\n\n";
 
 	if (argc < 2) { printf("%s", help_message); return 0; }
 
-	if (!strcmp(argv[1], "--version") || !strcmp(argv[1], "-v")){ printf("cascii version: %g\n", VERSION); return 0; }
+	if (!strcmp(argv[1], "--version") || !strcmp(argv[1], "-v")){ printf("cascii version: %g\n", VERSION); }
 
 	struct image original_image;
 	original_image.path = argv[1];
 
 	if (!image_load(&original_image)) { printf("%s", help_message); return 0; }
 
+	if (argc > 2)
+	{
+		if (!strcmp(argv[2], "--imdata")) { 
+			printf("%s: w:%d, h:%d, c:%d\n", original_image.path, original_image.width, original_image.height, original_image.channels); 
+			return 0;
+		}
+	}
+
 	if (argc < 4) { printf("%s", help_message); return 0; }
 
-	// We get the aspect ratio of the original image, we can maintain aspect ratio this way
+	// we can maintain aspect ratio this way
 	int aspect_ratio = original_image.width / original_image.height;
 
-	// If the aspect ratio is 0 we set it to one, this occurs with images that are longer than they are wider
+	// this occurs with images that are longer than they are wider
 	if (aspect_ratio == 0)
 		aspect_ratio = 1;
 
+	// Resolution of resized image
 	int res_w = (int)(atoi(argv[2]));
 	int res_h = (int)(atoi(argv[3]));
 
@@ -148,9 +166,9 @@ int main(int argc, char** argv)
 	// The height is basically set with this logic
 	// If the aspect_ratio is 1, we use the height specified by the user, if its not, we divide the resolution by the aspect ratio
 	struct image resized_image = { .width = res_w, .height = aspect_ratio == 1 ? res_h : (int)(res_h / aspect_ratio)};
-	// Size of each pixel * the number of pixels 
 	resized_image.size = resized_image.width * resized_image.height * original_image.channels;
-	if (!image_resize(original_image, &resized_image)) { printf("%s", help_message); return 0; }
+
+	if (!image_resize(original_image, &resized_image)) { printf("Failure resizing image:\n%s", help_message); return 0; }
 
 	struct image gray_image;
 	if (!image_to_gray_scale(resized_image, &gray_image)) return 0;
@@ -168,6 +186,8 @@ int main(int argc, char** argv)
 		if (!make_file) { printf("%s", help_message); return 0; }
 	}
 
+
+	// Finally print the data
 	image_to_ascii(gray_image, make_file);
 
 	// We free the data 
